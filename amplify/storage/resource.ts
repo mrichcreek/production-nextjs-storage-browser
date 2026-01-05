@@ -51,5 +51,10 @@ export const storage = defineStorage({
       allow.authenticated.to(['read']),
       allow.entity('identity').to(['read', 'write', 'delete'])
     ]
+    ,
+    'ConversionFileErrors/Mock8/*': [
+      allow.authenticated.to(['read']),
+      allow.entity('identity').to(['read', 'write', 'delete'])
+    ]
   })
 });
