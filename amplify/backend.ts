@@ -9,4 +9,3 @@ defineBackend({
   auth,
   storage,
 });
-

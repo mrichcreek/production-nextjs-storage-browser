@@ -1,0 +1,50 @@
+{
+  "version": "1.4",
+  "auth": {
+    "aws_region": "us-east-1",
+    "user_pool_id": "us-east-1_bO4CZPqpu",
+    "user_pool_client_id": "5ceuqbfb7dg1jgch0ob9ld4sll",
+    "identity_pool_id": "us-east-1:c613573a-79b2-4b62-92b9-6eace14619c8",
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_uppercase": true,
+      "require_numbers": true,
+      "require_symbols": true
+    },
+    "standard_required_attributes": ["email"],
+    "username_attributes": ["email"],
+    "user_verification_types": ["email"]
+  },
+  "storage": {
+    "aws_region": "us-east-1",
+    "bucket_name": "hacienda-erp",
+    "buckets": [
+      {
+        "name": "default",
+        "bucket_name": "hacienda-erp",
+        "aws_region": "us-east-1",
+        "paths": {
+          "ConversionFiles/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          },
+          "ConversionFileErrors/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          },
+          "InitialUpload/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          },
+          "InitialUploadErrors/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          },
+          "TSQLFiles/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          },
+          "DataValidation/*": {
+            "authenticated": ["get", "list", "write", "delete"]
+          }
+        }
+      }
+    ]
+  }
+}
