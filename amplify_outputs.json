@@ -2,9 +2,9 @@
   "version": "1.4",
   "auth": {
     "aws_region": "us-east-1",
-    "user_pool_id": "us-east-1_bO4CZPqpu",
-    "user_pool_client_id": "5ceuqbfb7dg1jgch0ob9ld4sll",
-    "identity_pool_id": "us-east-1:c613573a-79b2-4b62-92b9-6eace14619c8",
+    "user_pool_id": "us-east-1_GbDEpwd4X",
+    "user_pool_client_id": "4seq105rqkge73reoarel51ech",
+    "identity_pool_id": "us-east-1:5bf79d75-6a3e-4e00-ae61-ae283f593664",
     "password_policy": {
       "min_length": 8,
       "require_lowercase": true,
