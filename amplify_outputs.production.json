@@ -2,9 +2,9 @@
   "version": "1.4",
   "auth": {
     "aws_region": "us-east-1",
-    "user_pool_id": "us-east-1_GKdOkUgkK",
-    "user_pool_client_id": "4v7o38ldam1sa6e6ogdipht6vv",
-    "identity_pool_id": "us-east-1:0634f448-eace-44f7-878e-f36d8a47f706",
+    "user_pool_id": "us-east-1_P8rgnt97e",
+    "user_pool_client_id": "ak27cunr34o5n448as0u1klja",
+    "identity_pool_id": "us-east-1:9abcff91-45fe-4154-b134-6ebda522a148",
     "password_policy": {
       "min_length": 8,
       "require_lowercase": true,
@@ -18,11 +18,11 @@
   },
   "storage": {
     "aws_region": "us-east-1",
-    "bucket_name": "amplify-d2rr9r4nmj79me-va-storagebrowsertestbucket-lrgq2rrslniw",
+    "bucket_name": "hacienda-erp",
     "buckets": [
       {
         "name": "default",
-        "bucket_name": "amplify-d2rr9r4nmj79me-va-storagebrowsertestbucket-lrgq2rrslniw",
+        "bucket_name": "hacienda-erp",
         "aws_region": "us-east-1",
         "paths": {
           "ConversionFiles/*": {
