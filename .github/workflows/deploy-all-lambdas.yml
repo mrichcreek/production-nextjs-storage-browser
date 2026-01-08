@@ -1,0 +1,268 @@
+# ============================================================================
+# GITHUB ACTIONS WORKFLOW: Deploy All Lambda Functions
+# ============================================================================
+#
+# WHAT THIS DOES:
+# ---------------
+# When you push changes to the Lambda/ folder in GitHub, this workflow
+# automatically deploys ALL 20 Lambda functions to AWS.
+#
+# HOW IT WORKS:
+# -------------
+# 1. Packages all Python files into a single zip
+# 2. Uploads the same zip to each Lambda function in AWS
+# 3. Each Lambda function uses a different "handler" setting to run
+#    the correct file (e.g., relocate_file.lambda_handler)
+#
+# WHY ONE ZIP FOR ALL?
+# --------------------
+# Your Lambda functions share code (like s3_helper.py, get_aws_secret.py).
+# By deploying the same zip to all functions, they can import shared modules.
+#
+# ============================================================================
+
+name: Deploy All Lambda Functions
+
+on:
+  push:
+    branches:
+      - various-new-fucntionality
+      - main
+      - master
+    paths:
+      # Only runs when Lambda folder changes
+      - 'Lambda/**'
+
+  workflow_dispatch:
+    # Allows manual trigger from GitHub Actions tab
+    description: 'Manually deploy all Lambda functions'
+
+env:
+  AWS_REGION: us-east-1
+  PYTHON_VERSION: '3.11'
+  # The folder/prefix in AWS Lambda where your functions live
+  LAMBDA_FOLDER: TestFunction
+
+jobs:
+  # ==========================================================================
+  # JOB 1: PACKAGE
+  # Creates a single zip file with all Python code
+  # ==========================================================================
+  package:
+    name: Package Lambda Code
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        # Downloads your GitHub code to the runner machine
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Dependencies (if requirements.txt exists)
+        run: |
+          if [ -f "Lambda/requirements.txt" ]; then
+            echo "Installing dependencies from requirements.txt..."
+            pip install -r Lambda/requirements.txt -t Lambda/
+          else
+            echo "No requirements.txt found - skipping"
+          fi
+
+      - name: Create Deployment Package
+        run: |
+          echo "========================================"
+          echo "Creating Lambda deployment package..."
+          echo "========================================"
+
+          cd Lambda
+
+          echo "Files being packaged:"
+          ls -la *.py
+
+          # Create zip with all Python files
+          zip -r ../lambda-package.zip .
+
+          cd ..
+
+          echo "========================================"
+          echo "Package created:"
+          ls -lh lambda-package.zip
+          echo "========================================"
+
+      - name: Upload Package as Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda-package.zip
+          retention-days: 1
+        # Saves the zip so deploy jobs can use it
+
+  # ==========================================================================
+  # JOB 2: DEPLOY ALL FUNCTIONS
+  # Uses a matrix strategy to deploy all 20 functions in parallel
+  # ==========================================================================
+  deploy:
+    name: Deploy TestFunction/${{ matrix.function }}
+    needs: package  # Waits for package job to complete
+    runs-on: ubuntu-latest
+
+    # MATRIX STRATEGY:
+    # This creates 20 parallel jobs - one for each Lambda function!
+    # Much faster than deploying one at a time.
+    strategy:
+      fail-fast: false  # Continue deploying others if one fails
+      matrix:
+        function:
+          # ----------------------------------------------------------------
+          # LIST OF ALL 20 LAMBDA FUNCTIONS
+          # These names must EXACTLY match your function names in AWS
+          # ----------------------------------------------------------------
+          - Split_CSV_File_By_BU_FiveCharacters
+          - add_tags_to_s3_object
+          - build_tsql_from_tags
+          - execute_tsql
+          - find_file_by_tags
+          - generate_validation_file
+          - get_aws_secret
+          - get_bu_split_field
+          - get_cognito_email
+          - get_tags_from_file
+          - lambda_function
+          - load_file
+          - load_file_ap_invoices_prifas
+          - parse_filename
+          - relocate_file
+          - s3_helper
+          - s3_upload
+          - send_file_notification_email
+          - validate_headers
+          - validate_tag_values
+
+    steps:
+      - name: Download Package
+        uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+        # Downloads the zip we created in the package job
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+        # Authenticates with AWS using secrets stored in GitHub
+
+      - name: Deploy ${{ matrix.function }} to AWS Lambda
+        run: |
+          echo "========================================"
+          echo "Deploying: ${{ env.LAMBDA_FOLDER }}/${{ matrix.function }}"
+          echo "========================================"
+
+          # Full function name includes the folder prefix
+          # Example: TestFunction/relocate_file
+          aws lambda update-function-code \
+            --function-name "${{ env.LAMBDA_FOLDER }}/${{ matrix.function }}" \
+            --zip-file fileb://lambda-package.zip \
+            --publish
+
+          echo "========================================"
+          echo "Successfully deployed: ${{ env.LAMBDA_FOLDER }}/${{ matrix.function }}"
+          echo "========================================"
+
+  # ==========================================================================
+  # JOB 3: SUMMARY
+  # Reports deployment results
+  # ==========================================================================
+  summary:
+    name: Deployment Summary
+    needs: deploy
+    runs-on: ubuntu-latest
+    if: always()  # Runs even if some deployments failed
+
+    steps:
+      - name: Report Results
+        run: |
+          echo "========================================"
+          echo "DEPLOYMENT COMPLETE"
+          echo "========================================"
+          echo ""
+          echo "All 20 Lambda functions have been updated."
+          echo ""
+          echo "Functions deployed:"
+          echo "  - Split_CSV_File_By_BU_FiveCharacters"
+          echo "  - add_tags_to_s3_object"
+          echo "  - build_tsql_from_tags"
+          echo "  - execute_tsql"
+          echo "  - find_file_by_tags"
+          echo "  - generate_validation_file"
+          echo "  - get_aws_secret"
+          echo "  - get_bu_split_field"
+          echo "  - get_cognito_email"
+          echo "  - get_tags_from_file"
+          echo "  - lambda_function"
+          echo "  - load_file"
+          echo "  - load_file_ap_invoices_prifas"
+          echo "  - parse_filename"
+          echo "  - relocate_file"
+          echo "  - s3_helper"
+          echo "  - s3_upload"
+          echo "  - send_file_notification_email"
+          echo "  - validate_headers"
+          echo "  - validate_tag_values"
+          echo ""
+          echo "========================================"
+
+# ============================================================================
+# SETUP INSTRUCTIONS
+# ============================================================================
+#
+# STEP 1: Add GitHub Secrets
+# --------------------------
+# Go to: GitHub repo → Settings → Secrets and variables → Actions
+# Add these two secrets:
+#   - AWS_ACCESS_KEY_ID     (your AWS access key)
+#   - AWS_SECRET_ACCESS_KEY (your AWS secret key)
+#
+# STEP 2: Verify Lambda Function Names
+# ------------------------------------
+# The function names in the matrix above must EXACTLY match the names
+# in AWS Lambda console. If your functions are named differently,
+# update the matrix list.
+#
+# STEP 3: Commit and Push
+# -----------------------
+# git add .github/workflows/deploy-all-lambdas.yml
+# git commit -m "Add GitHub Actions for Lambda deployment"
+# git push origin various-new-fucntionality
+#
+# ============================================================================
+# HOW THE MATRIX WORKS (VISUAL)
+# ============================================================================
+#
+#                    ┌─────────────────┐
+#                    │   Package Job   │
+#                    │  (creates zip)  │
+#                    └────────┬────────┘
+#                             │
+#        ┌──────────┬─────────┼─────────┬──────────┐
+#        │          │         │         │          │
+#        ▼          ▼         ▼         ▼          ▼
+#   ┌─────────┐┌─────────┐┌─────────┐┌─────────┐┌─────────┐
+#   │ Deploy  ││ Deploy  ││ Deploy  ││ Deploy  ││ Deploy  │
+#   │ func 1  ││ func 2  ││ func 3  ││  ...    ││ func 20 │
+#   └─────────┘└─────────┘└─────────┘└─────────┘└─────────┘
+#        │          │         │         │          │
+#        └──────────┴─────────┼─────────┴──────────┘
+#                             │
+#                    ┌────────▼────────┐
+#                    │  Summary Job    │
+#                    │ (report results)│
+#                    └─────────────────┘
+#
+# All 20 deploy jobs run IN PARALLEL = fast deployment!
+#
+# ============================================================================
