@@ -7,6 +7,7 @@ def stringify_values(tags):
     """
     Convert dictionary values to strings in a human-readable format.
     If a value is a dictionary, flatten it using a pipe (`|`) separator.
+    Updated to test github integration with AWS @2026.01.08 14:19 LBB.
     """
     formatted_tags = {}
     for k, v in tags.items():
