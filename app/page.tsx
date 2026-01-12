@@ -93,9 +93,8 @@ function FileBrowser() {
             className="menu-toggle"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             aria-label="Toggle menu"
-            style={{ display: 'none' }}
           >
-            <span style={{ fontSize: '20px' }}>☰</span>
+            <span>☰</span>
           </button>
 
           <div className="header-logo">H</div>
@@ -186,19 +185,10 @@ function FileBrowser() {
 
           {/* Storage Browser */}
           <div className="storage-browser-wrapper">
-            <StorageBrowser key={storageKey} />
+            <StorageBrowser key={refreshKey} />
           </div>
         </main>
       </div>
-
-      {/* Mobile menu toggle styles - inline for visibility control */}
-      <style jsx>{`
-        @media (max-width: 768px) {
-          .menu-toggle {
-            display: flex !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }

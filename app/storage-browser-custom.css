@@ -112,6 +112,11 @@ body {
   gap: 12px;
 }
 
+/* Hide mobile menu toggle on desktop */
+.menu-toggle {
+  display: none;
+}
+
 .header-logo {
   width: 40px;
   height: 40px;
