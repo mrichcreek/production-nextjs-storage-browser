@@ -1,0 +1,704 @@
+/* Hacienda ERP File Browser - Blue Professional Theme */
+
+/* ============================================
+   CSS Custom Properties (Design Tokens)
+   ============================================ */
+:root {
+  /* Primary Colors - Blue Professional */
+  --color-primary: #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-light: #3b82f6;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+
+  /* Neutral Colors */
+  --color-background: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-border-light: #f1f5f9;
+
+  /* Text Colors */
+  --color-text-primary: #1e293b;
+  --color-text-secondary: #64748b;
+  --color-text-muted: #94a3b8;
+
+  /* Status Colors */
+  --color-error: #dc2626;
+  --color-error-light: #fef2f2;
+  --color-success: #16a34a;
+  --color-success-light: #f0fdf4;
+  --color-warning: #d97706;
+  --color-warning-light: #fffbeb;
+
+  /* Folder Type Colors */
+  --color-folder-default: #2563eb;
+  --color-folder-upload: #16a34a;
+  --color-folder-error: #dc2626;
+  --color-folder-sql: #d97706;
+  --color-folder-validation: #0891b2;
+
+  /* Layout */
+  --header-height: 64px;
+  --sidebar-width: 260px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+}
+
+/* ============================================
+   Base & Reset
+   ============================================ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-background);
+  font-family: var(--font-geist-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--color-text-primary);
+  min-height: 100vh;
+}
+
+/* ============================================
+   App Layout Structure
+   ============================================ */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+  box-shadow: var(--shadow-sm);
+}
+
+.app-body {
+  display: flex;
+  margin-top: var(--header-height);
+  min-height: calc(100vh - var(--header-height));
+}
+
+/* ============================================
+   Header Styles
+   ============================================ */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.header-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-primary-50);
+  border-radius: var(--radius-md);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.user-email {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sign-out-btn {
+  background: transparent !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-text-secondary) !important;
+  padding: 8px 16px !important;
+  border-radius: var(--radius-md) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  cursor: pointer;
+  transition: all var(--transition-fast) !important;
+}
+
+.sign-out-btn:hover {
+  background: var(--color-error-light) !important;
+  border-color: var(--color-error) !important;
+  color: var(--color-error) !important;
+}
+
+/* ============================================
+   Sidebar Styles
+   ============================================ */
+.sidebar {
+  width: var(--sidebar-width);
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  padding: 20px 0;
+  position: fixed;
+  left: 0;
+  top: var(--header-height);
+  bottom: 0;
+  overflow-y: auto;
+}
+
+.sidebar-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--color-text-muted);
+  padding: 0 20px;
+  margin: 0 0 12px 0;
+}
+
+.sidebar-nav {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar-item {
+  margin: 2px 8px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-link:hover {
+  background: var(--color-primary-50);
+  color: var(--color-primary);
+}
+
+.sidebar-link.active {
+  background: var(--color-primary-100);
+  color: var(--color-primary);
+}
+
+.sidebar-icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+/* Folder-specific icon colors */
+.sidebar-link[data-folder="conversion"] .sidebar-icon { color: var(--color-folder-default); }
+.sidebar-link[data-folder="upload"] .sidebar-icon { color: var(--color-folder-upload); }
+.sidebar-link[data-folder="error"] .sidebar-icon { color: var(--color-folder-error); }
+.sidebar-link[data-folder="sql"] .sidebar-icon { color: var(--color-folder-sql); }
+.sidebar-link[data-folder="validation"] .sidebar-icon { color: var(--color-folder-validation); }
+
+/* ============================================
+   Main Content Area
+   ============================================ */
+.main-content {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  padding: 24px;
+  background: var(--color-background);
+}
+
+/* ============================================
+   Breadcrumb Navigation
+   ============================================ */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 14px;
+}
+
+.breadcrumb-link {
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color var(--transition-fast);
+}
+
+.breadcrumb-link:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+.breadcrumb-current {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.breadcrumb-separator {
+  color: var(--color-text-muted);
+}
+
+/* ============================================
+   Storage Browser Container
+   ============================================ */
+.storage-browser-wrapper {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+/* ============================================
+   Amplify Storage Browser Overrides
+   ============================================ */
+[data-amplify-storage-browser] {
+  --amplify-colors-background-primary: var(--color-surface);
+  --amplify-colors-background-secondary: var(--color-background);
+  --amplify-colors-border-primary: var(--color-border);
+  --amplify-colors-font-primary: var(--color-text-primary);
+  --amplify-colors-font-secondary: var(--color-text-secondary);
+  --amplify-colors-brand-primary: var(--color-primary);
+  --amplify-space-medium: 16px;
+}
+
+/* Table Styling */
+[data-amplify-storage-browser] table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+[data-amplify-storage-browser] th {
+  background: var(--color-background);
+  padding: 14px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  border-bottom: 2px solid var(--color-border);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+[data-amplify-storage-browser] td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text-primary);
+  font-size: 14px;
+}
+
+[data-amplify-storage-browser] tr:hover td {
+  background-color: var(--color-primary-50);
+}
+
+[data-amplify-storage-browser] tr:last-child td {
+  border-bottom: none;
+}
+
+/* Button Styling */
+[data-amplify-storage-browser] button {
+  border-radius: var(--radius-md);
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  font-size: 14px;
+}
+
+[data-amplify-storage-browser] button[data-variation="primary"] {
+  background: var(--color-primary) !important;
+  border: none;
+  color: white !important;
+  padding: 10px 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+[data-amplify-storage-browser] button[data-variation="primary"]:hover {
+  background: var(--color-primary-dark) !important;
+  box-shadow: var(--shadow-md);
+}
+
+[data-amplify-storage-browser] button[data-variation="link"] {
+  color: var(--color-primary);
+  background: transparent;
+  padding: 8px 12px;
+}
+
+[data-amplify-storage-browser] button[data-variation="link"]:hover {
+  background: var(--color-primary-50);
+}
+
+/* Toolbar/Action Bar */
+[data-amplify-storage-browser] [class*="toolbar"],
+[data-amplify-storage-browser] [class*="actions"] {
+  background: var(--color-surface);
+  padding: 16px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Breadcrumb in Storage Browser */
+[data-amplify-storage-browser] [class*="breadcrumb"] {
+  padding: 14px 16px;
+  background: var(--color-background);
+  border-bottom: 1px solid var(--color-border);
+}
+
+[data-amplify-storage-browser] [class*="breadcrumb"] a,
+[data-amplify-storage-browser] [class*="breadcrumb"] button {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+[data-amplify-storage-browser] [class*="breadcrumb"] a:hover,
+[data-amplify-storage-browser] [class*="breadcrumb"] button:hover {
+  color: var(--color-primary-dark);
+}
+
+/* File/Folder Icons */
+[data-amplify-storage-browser] [class*="icon"] {
+  color: var(--color-primary);
+}
+
+/* Checkbox Styling */
+[data-amplify-storage-browser] input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+/* Empty State */
+[data-amplify-storage-browser] [class*="empty"] {
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* Loading State */
+[data-amplify-storage-browser] [class*="loading"] {
+  color: var(--color-primary);
+}
+
+/* Pagination */
+[data-amplify-storage-browser] [class*="pagination"] {
+  padding: 16px;
+  background: var(--color-background);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* Search Input */
+[data-amplify-storage-browser] input[type="text"],
+[data-amplify-storage-browser] input[type="search"] {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  background: var(--color-surface);
+}
+
+[data-amplify-storage-browser] input[type="text"]:focus,
+[data-amplify-storage-browser] input[type="search"]:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-100);
+  outline: none;
+}
+
+/* Dropdown/Select */
+[data-amplify-storage-browser] select {
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-size: 14px;
+  background: var(--color-surface);
+  cursor: pointer;
+}
+
+[data-amplify-storage-browser] select:focus {
+  border-color: var(--color-primary);
+  outline: none;
+}
+
+/* Modal/Dialog */
+[data-amplify-storage-browser] [class*="modal"],
+[data-amplify-storage-browser] [class*="dialog"] {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Progress Bar */
+[data-amplify-storage-browser] [class*="progress"] {
+  background: var(--color-border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  height: 8px;
+}
+
+[data-amplify-storage-browser] [class*="progress"] > * {
+  background: var(--color-primary);
+}
+
+/* ============================================
+   File Type Badges
+   ============================================ */
+.file-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.file-type-badge.csv {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.file-type-badge.json {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.file-type-badge.txt {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.file-type-badge.sql {
+  background: #ffe4e6;
+  color: #be123c;
+}
+
+.file-type-badge.xlsx,
+.file-type-badge.xls {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* ============================================
+   Scrollbar Styling
+   ============================================ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main-content {
+    margin-left: 220px;
+  }
+
+  :root {
+    --sidebar-width: 220px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .header-title {
+    font-size: 16px;
+  }
+
+  .user-email {
+    display: none;
+  }
+
+  .sidebar {
+    position: fixed;
+    left: -100%;
+    width: 280px;
+    transition: left var(--transition-normal);
+    z-index: 90;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 16px;
+  }
+
+  .menu-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    margin-right: 12px;
+  }
+
+  [data-amplify-storage-browser] th,
+  [data-amplify-storage-browser] td {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+}
+
+/* Sidebar overlay for mobile */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 80;
+}
+
+.sidebar-overlay.visible {
+  display: block;
+}
+
+/* ============================================
+   Amplify Authenticator Overrides
+   ============================================ */
+[data-amplify-authenticator] {
+  --amplify-colors-brand-primary-10: var(--color-primary-50);
+  --amplify-colors-brand-primary-20: var(--color-primary-100);
+  --amplify-colors-brand-primary-80: var(--color-primary);
+  --amplify-colors-brand-primary-90: var(--color-primary-dark);
+  --amplify-colors-brand-primary-100: var(--color-primary-dark);
+}
+
+[data-amplify-authenticator] [data-amplify-container] {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+/* ============================================
+   Animation Keyframes
+   ============================================ */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-normal);
+}
+
+.slide-in {
+  animation: slideIn var(--transition-normal);
+}

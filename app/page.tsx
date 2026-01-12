@@ -10,84 +10,199 @@ import {
 } from '@aws-amplify/ui-react-storage/browser';
 import '@aws-amplify/ui-react-storage/styles.css';
 import '@aws-amplify/ui-react-storage/storage-browser-styles.css';
-import S3FolderLink from './S3FolderLink';
 import config from '../amplify_outputs.json';
 
 Amplify.configure(config);
 
-function Example() {
-  const [currentPath, setCurrentPath] = useState('');
-  
+// Folder configuration with icons and colors
+const folders = [
+  { path: 'ConversionFiles/', name: 'Conversion Files', icon: '📄', type: 'conversion' },
+  { path: 'ConversionFileErrors/', name: 'Conversion Errors', icon: '⚠️', type: 'error' },
+  { path: 'InitialUpload/', name: 'Initial Upload', icon: '📤', type: 'upload' },
+  { path: 'InitialUploadErrors/', name: 'Upload Errors', icon: '❌', type: 'error' },
+  { path: 'TSQLFiles/', name: 'TSQL Files', icon: '🗃️', type: 'sql' },
+  { path: 'DataValidation/', name: 'Data Validation', icon: '✅', type: 'validation' },
+];
+
+function FileBrowser() {
+  const [userEmail, setUserEmail] = useState<string>('');
+  const [currentPath, setCurrentPath] = useState<string>('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [storageKey, setStorageKey] = useState(0);
+
   useEffect(() => {
-    // Check if there's a target path in sessionStorage
+    // Check for navigation target in sessionStorage
     const targetPath = sessionStorage.getItem('s3NavigationTarget');
     if (targetPath) {
       setCurrentPath(targetPath);
-      // Clear the target path from sessionStorage after using it
       sessionStorage.removeItem('s3NavigationTarget');
     }
-    
+
+    // Fetch user attributes
     async function getAttributes() {
       try {
         const attributes = await fetchUserAttributes();
-        console.log("User Attributes:", attributes);
+        setUserEmail(attributes.email || '');
       } catch (error) {
-        console.error("Error fetching user attributes", error);
+        console.error('Error fetching user attributes', error);
       }
     }
     getAttributes();
   }, []);
 
+  // Create storage browser with current configuration
   const { StorageBrowser } = createStorageBrowser({
     elements: elementsDefault,
     config: createAmplifyAuthAdapter({
       options: {
-        defaultPrefixes: [
-          'ConversionFiles/',
-          'ConversionFileErrors/',
-          'ConversionFileErrors/Mock8/',
-          'InitialUpload/',
-          'InitialUploadErrors/',
-          'TSQLFiles/',
-          'DataValidation/',
-        ],
-        // Set the initial path if one is specified
+        defaultPrefixes: folders.map(f => f.path),
         ...(currentPath && { initialPath: currentPath }),
       },
     }),
   });
 
+  // Handle folder navigation
+  const handleFolderClick = (path: string) => {
+    setCurrentPath(path);
+    setStorageKey(prev => prev + 1);
+    setSidebarOpen(false);
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = (email: string) => {
+    if (!email) return 'U';
+    const parts = email.split('@')[0].split(/[._-]/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return email.substring(0, 2).toUpperCase();
+  };
+
+  // Get current folder name for breadcrumb
+  const getCurrentFolderName = () => {
+    if (!currentPath) return 'All Folders';
+    const folder = folders.find(f => f.path === currentPath);
+    return folder ? folder.name : currentPath.replace('/', '');
+  };
+
   return (
-    <>
-      <Button
-        marginBlockEnd="xl"
-        size="small"
-        onClick={() => {
-          signOut();
-        }}
-      >
-        Sign Out
-      </Button>
-      
-      <div style={{ marginBottom: '20px' }}>
-        <h3>Quick Links:</h3>
-        <ul>
-          <li>
-            <S3FolderLink path="ConversionFileErrors/Mock8">
-              Go to ConversionFileErrors/Mock8
-            </S3FolderLink>
-          </li>
-          <li>
-            <S3FolderLink path="haciendaerp/conversionfileerrors">
-              Go to haciendaerp/conversionfileerrors
-            </S3FolderLink>
-          </li>
-        </ul>
+    <div className="app-container">
+      {/* Header */}
+      <header className="app-header">
+        <div className="header-left">
+          {/* Mobile menu toggle */}
+          <button
+            className="menu-toggle"
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label="Toggle menu"
+            style={{ display: 'none' }}
+          >
+            <span style={{ fontSize: '20px' }}>☰</span>
+          </button>
+
+          <div className="header-logo">H</div>
+          <h1 className="header-title">Hacienda ERP File Browser</h1>
+        </div>
+
+        <div className="header-right">
+          {userEmail && (
+            <div className="user-info">
+              <div className="user-avatar">{getUserInitials(userEmail)}</div>
+              <span className="user-email">{userEmail}</span>
+            </div>
+          )}
+          <Button
+            className="sign-out-btn"
+            size="small"
+            onClick={() => signOut()}
+          >
+            Sign Out
+          </Button>
+        </div>
+      </header>
+
+      <div className="app-body">
+        {/* Mobile overlay */}
+        <div
+          className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
+          onClick={() => setSidebarOpen(false)}
+        />
+
+        {/* Sidebar */}
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <h2 className="sidebar-title">Folders</h2>
+          <nav>
+            <ul className="sidebar-nav">
+              <li className="sidebar-item">
+                <button
+                  className={`sidebar-link ${!currentPath ? 'active' : ''}`}
+                  onClick={() => handleFolderClick('')}
+                  data-folder="default"
+                >
+                  <span className="sidebar-icon">🏠</span>
+                  <span>All Folders</span>
+                </button>
+              </li>
+              {folders.map((folder) => (
+                <li key={folder.path} className="sidebar-item">
+                  <button
+                    className={`sidebar-link ${currentPath === folder.path ? 'active' : ''}`}
+                    onClick={() => handleFolderClick(folder.path)}
+                    data-folder={folder.type}
+                  >
+                    <span className="sidebar-icon">{folder.icon}</span>
+                    <span>{folder.name}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="main-content">
+          {/* Breadcrumb */}
+          <div className="breadcrumb">
+            <span className="breadcrumb-item">
+              <button
+                className="breadcrumb-link"
+                onClick={() => handleFolderClick('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                  font: 'inherit'
+                }}
+              >
+                Home
+              </button>
+            </span>
+            {currentPath && (
+              <>
+                <span className="breadcrumb-separator">/</span>
+                <span className="breadcrumb-current">{getCurrentFolderName()}</span>
+              </>
+            )}
+          </div>
+
+          {/* Storage Browser */}
+          <div className="storage-browser-wrapper">
+            <StorageBrowser key={storageKey} />
+          </div>
+        </main>
       </div>
-      
-      <StorageBrowser />
-    </>
+
+      {/* Mobile menu toggle styles - inline for visibility control */}
+      <style jsx>{`
+        @media (max-width: 768px) {
+          .menu-toggle {
+            display: flex !important;
+          }
+        }
+      `}</style>
+    </div>
   );
 }
 
-export default withAuthenticator(Example);
+export default withAuthenticator(FileBrowser);
