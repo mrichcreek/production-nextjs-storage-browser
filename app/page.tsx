@@ -14,6 +14,13 @@ import config from '../amplify_outputs.json';
 
 Amplify.configure(config);
 
+// Type for quick links
+interface QuickLink {
+  id: string;
+  path: string;
+  name: string;
+}
+
 // Folder configuration with icons and colors
 const folders = [
   { path: 'ConversionFiles/', name: 'Conversion Files', icon: '📄', type: 'conversion' },
@@ -24,11 +31,40 @@ const folders = [
   { path: 'DataValidation/', name: 'Data Validation', icon: '✅', type: 'validation' },
 ];
 
+// Default quick links
+const defaultQuickLinks: QuickLink[] = [
+  { id: 'default-1', path: 'ConversionFileErrors/Mock8/', name: 'Mock8 Errors' },
+];
+
 function FileBrowser() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // Quick Links state
+  const [quickLinks, setQuickLinks] = useState<QuickLink[]>(defaultQuickLinks);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newLinkPath, setNewLinkPath] = useState('');
+  const [newLinkName, setNewLinkName] = useState('');
+  const [showContextMenu, setShowContextMenu] = useState(false);
+
+  // Load quick links from localStorage on mount
+  useEffect(() => {
+    const savedLinks = localStorage.getItem('hacienda-quick-links');
+    if (savedLinks) {
+      try {
+        setQuickLinks(JSON.parse(savedLinks));
+      } catch (e) {
+        console.error('Error loading quick links:', e);
+      }
+    }
+  }, []);
+
+  // Save quick links to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('hacienda-quick-links', JSON.stringify(quickLinks));
+  }, [quickLinks]);
 
   useEffect(() => {
     // Fetch user attributes
@@ -64,6 +100,7 @@ function FileBrowser() {
     setCurrentPath(path);
     setRefreshKey(prev => prev + 1);
     setSidebarOpen(false);
+    setShowContextMenu(false);
   };
 
   // Get user initials for avatar
@@ -80,7 +117,57 @@ function FileBrowser() {
   const getCurrentFolderName = () => {
     if (!currentPath) return 'All Folders';
     const folder = folders.find(f => f.path === currentPath);
-    return folder ? folder.name : currentPath.replace('/', '');
+    if (folder) return folder.name;
+    // Check quick links
+    const quickLink = quickLinks.find(ql => ql.path === currentPath);
+    if (quickLink) return quickLink.name;
+    return currentPath.replace(/\/$/, '').split('/').pop() || currentPath;
+  };
+
+  // Add a new quick link
+  const handleAddQuickLink = () => {
+    if (!newLinkPath.trim()) return;
+
+    const path = newLinkPath.trim().endsWith('/') ? newLinkPath.trim() : newLinkPath.trim() + '/';
+    const name = newLinkName.trim() || path.replace(/\/$/, '').split('/').pop() || path;
+
+    const newLink: QuickLink = {
+      id: `custom-${Date.now()}`,
+      path,
+      name,
+    };
+
+    setQuickLinks(prev => [...prev, newLink]);
+    setNewLinkPath('');
+    setNewLinkName('');
+    setShowAddModal(false);
+  };
+
+  // Add current folder as quick link
+  const handleAddCurrentAsQuickLink = () => {
+    if (!currentPath) return;
+
+    const existingLink = quickLinks.find(ql => ql.path === currentPath);
+    if (existingLink) {
+      alert('This folder is already in your quick links.');
+      setShowContextMenu(false);
+      return;
+    }
+
+    const name = getCurrentFolderName();
+    const newLink: QuickLink = {
+      id: `custom-${Date.now()}`,
+      path: currentPath,
+      name,
+    };
+
+    setQuickLinks(prev => [...prev, newLink]);
+    setShowContextMenu(false);
+  };
+
+  // Delete a quick link
+  const handleDeleteQuickLink = (id: string) => {
+    setQuickLinks(prev => prev.filter(ql => ql.id !== id));
   };
 
   return (
@@ -127,6 +214,7 @@ function FileBrowser() {
 
         {/* Sidebar */}
         <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+          {/* Folders Section */}
           <h2 className="sidebar-title">Folders</h2>
           <nav>
             <ul className="sidebar-nav">
@@ -154,6 +242,44 @@ function FileBrowser() {
               ))}
             </ul>
           </nav>
+
+          {/* Quick Links Section */}
+          <h2 className="sidebar-title quick-links-title">Quick Links</h2>
+          <nav>
+            <ul className="sidebar-nav">
+              {quickLinks.map((link) => (
+                <li key={link.id} className="sidebar-item quick-link-item">
+                  <button
+                    className={`sidebar-link ${currentPath === link.path ? 'active' : ''}`}
+                    onClick={() => handleFolderClick(link.path)}
+                    data-folder="quicklink"
+                  >
+                    <span className="sidebar-icon">⭐</span>
+                    <span>{link.name}</span>
+                  </button>
+                  <button
+                    className="quick-link-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteQuickLink(link.id);
+                    }}
+                    title="Remove quick link"
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+              <li className="sidebar-item">
+                <button
+                  className="sidebar-link add-quick-link"
+                  onClick={() => setShowAddModal(true)}
+                >
+                  <span className="sidebar-icon">➕</span>
+                  <span>Add Quick Link</span>
+                </button>
+              </li>
+            </ul>
+          </nav>
         </aside>
 
         {/* Main Content */}
@@ -179,6 +305,25 @@ function FileBrowser() {
               <>
                 <span className="breadcrumb-separator">/</span>
                 <span className="breadcrumb-current">{getCurrentFolderName()}</span>
+                {/* Context menu button */}
+                <button
+                  className="breadcrumb-menu-btn"
+                  onClick={() => setShowContextMenu(!showContextMenu)}
+                  title="More options"
+                >
+                  ⋮
+                </button>
+                {showContextMenu && (
+                  <div className="context-menu">
+                    <button
+                      className="context-menu-item"
+                      onClick={handleAddCurrentAsQuickLink}
+                    >
+                      <span>⭐</span>
+                      <span>Add to Quick Links</span>
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -189,6 +334,70 @@ function FileBrowser() {
           </div>
         </main>
       </div>
+
+      {/* Add Quick Link Modal */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Add Quick Link</h3>
+              <button
+                className="modal-close"
+                onClick={() => setShowAddModal(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-group">
+                <label htmlFor="linkPath">Folder Path</label>
+                <input
+                  id="linkPath"
+                  type="text"
+                  placeholder="e.g., ConversionFiles/Reports/"
+                  value={newLinkPath}
+                  onChange={(e) => setNewLinkPath(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddQuickLink()}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="linkName">Display Name (optional)</label>
+                <input
+                  id="linkName"
+                  type="text"
+                  placeholder="e.g., Reports"
+                  value={newLinkName}
+                  onChange={(e) => setNewLinkName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddQuickLink()}
+                />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowAddModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary"
+                onClick={handleAddQuickLink}
+                disabled={!newLinkPath.trim()}
+              >
+                Add Quick Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Click outside to close context menu */}
+      {showContextMenu && (
+        <div
+          className="context-menu-overlay"
+          onClick={() => setShowContextMenu(false)}
+        />
+      )}
     </div>
   );
 }
