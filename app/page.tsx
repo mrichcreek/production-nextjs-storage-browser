@@ -1,5 +1,5 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Amplify } from 'aws-amplify';
 import { signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { Button, withAuthenticator } from '@aws-amplify/ui-react';
@@ -28,16 +28,9 @@ function FileBrowser() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [storageKey, setStorageKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
-    // Check for navigation target in sessionStorage
-    const targetPath = sessionStorage.getItem('s3NavigationTarget');
-    if (targetPath) {
-      setCurrentPath(targetPath);
-      sessionStorage.removeItem('s3NavigationTarget');
-    }
-
     // Fetch user attributes
     async function getAttributes() {
       try {
@@ -50,21 +43,26 @@ function FileBrowser() {
     getAttributes();
   }, []);
 
-  // Create storage browser with current configuration
-  const { StorageBrowser } = createStorageBrowser({
-    elements: elementsDefault,
-    config: createAmplifyAuthAdapter({
-      options: {
-        defaultPrefixes: folders.map(f => f.path),
-        ...(currentPath && { initialPath: currentPath }),
-      },
-    }),
-  });
+  // Create storage browser - memoized to prevent unnecessary recreation
+  const { StorageBrowser } = useMemo(() => {
+    const prefixes = currentPath
+      ? [currentPath]
+      : folders.map(f => f.path);
+
+    return createStorageBrowser({
+      elements: elementsDefault,
+      config: createAmplifyAuthAdapter({
+        options: {
+          defaultPrefixes: prefixes,
+        },
+      }),
+    });
+  }, [currentPath, refreshKey]);
 
   // Handle folder navigation
   const handleFolderClick = (path: string) => {
     setCurrentPath(path);
-    setStorageKey(prev => prev + 1);
+    setRefreshKey(prev => prev + 1);
     setSidebarOpen(false);
   };
 
