@@ -1,0 +1,125 @@
+{
+  "auth": {
+    "user_pool_id": "us-east-1_qN6joYJxf",
+    "aws_region": "us-east-1",
+    "user_pool_client_id": "3kcc0p94q1hur99s0m9m8tec1f",
+    "identity_pool_id": "us-east-1:1f0fd074-6c5d-464e-8526-015db90fd67b",
+    "mfa_methods": [],
+    "standard_required_attributes": [
+      "email"
+    ],
+    "username_attributes": [
+      "email"
+    ],
+    "user_verification_types": [
+      "email"
+    ],
+    "mfa_configuration": "NONE",
+    "password_policy": {
+      "min_length": 8,
+      "require_lowercase": true,
+      "require_numbers": true,
+      "require_symbols": true,
+      "require_uppercase": true
+    },
+    "unauthenticated_identities_enabled": true
+  },
+  "storage": {
+    "aws_region": "us-east-1",
+    "bucket_name": "hacienda-erp-prd",
+    "buckets": [
+      {
+        "name": "hacienda-erp-production",
+        "bucket_name": "hacienda-erp-prd",
+        "aws_region": "us-east-1",
+        "paths": {
+          "ConversionFiles/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "ConversionFileErrors/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "InitialUpload/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "InitialUploadErrors/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "TSQLFiles/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "DataValidation/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          },
+          "ConversionFileErrors/Mock8/*": {
+            "authenticated": [
+              "get",
+              "list"
+            ],
+            "entityidentity": [
+              "get",
+              "list",
+              "write",
+              "delete"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "version": "1.3"
+}

@@ -1,12 +1,24 @@
 version: 1
-# Backend section removed to prevent Amplify from overwriting
-# the custom amplify_outputs.json that points to hacienda-erp bucket
-# and production Cognito User Pool
+# Branch-based configuration:
+# - main branch uses amplify_outputs.prd.json (Production)
+# - develop branch uses amplify_outputs.dev.json (Development)
 frontend:
   phases:
     preBuild:
       commands:
         - npm ci --cache .npm --prefer-offline
+        # Copy the appropriate config based on branch
+        - |
+          if [ "$AWS_BRANCH" = "main" ]; then
+            echo "Using PRODUCTION configuration"
+            cp amplify_outputs.prd.json amplify_outputs.json
+          elif [ "$AWS_BRANCH" = "develop" ]; then
+            echo "Using DEVELOPMENT configuration"
+            cp amplify_outputs.dev.json amplify_outputs.json
+          else
+            echo "Unknown branch: $AWS_BRANCH, using PRD config as default"
+            cp amplify_outputs.prd.json amplify_outputs.json
+          fi
     build:
       commands:
         - npm run build
