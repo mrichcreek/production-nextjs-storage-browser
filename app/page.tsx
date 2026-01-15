@@ -14,6 +14,17 @@ import config from '../amplify_outputs.json';
 
 Amplify.configure(config);
 
+// Determine environment from bucket name
+const getEnvironmentName = () => {
+  const bucketName = config.storage?.bucket_name || '';
+  if (bucketName.includes('-prd') || bucketName.includes('-prod')) {
+    return 'Production';
+  } else if (bucketName.includes('-dev')) {
+    return 'Development';
+  }
+  return '';
+};
+
 // Type for quick links
 interface QuickLink {
   id: string;
@@ -40,7 +51,9 @@ function FileBrowser() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [currentPath, setCurrentPath] = useState<string>('');
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const environmentName = getEnvironmentName();
 
   // Quick Links state
   const [quickLinks, setQuickLinks] = useState<QuickLink[]>(defaultQuickLinks);
@@ -185,7 +198,10 @@ function FileBrowser() {
           </button>
 
           <div className="header-logo">H</div>
-          <h1 className="header-title">Hacienda ERP File Browser</h1>
+          <h1 className="header-title">
+            Hacienda ERP File Browser
+            {environmentName && <span className={`env-badge env-${environmentName.toLowerCase()}`}>{environmentName}</span>}
+          </h1>
         </div>
 
         <div className="header-right">
@@ -213,7 +229,16 @@ function FileBrowser() {
         />
 
         {/* Sidebar */}
-        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''} ${sidebarCollapsed ? 'collapsed' : ''}`}>
+          {/* Collapse Toggle Button */}
+          <button
+            className="sidebar-collapse-btn"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? '»' : '«'}
+          </button>
+
           {/* Folders Section */}
           <h2 className="sidebar-title">Folders</h2>
           <nav>
@@ -283,7 +308,7 @@ function FileBrowser() {
         </aside>
 
         {/* Main Content */}
-        <main className="main-content">
+        <main className={`main-content ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
           {/* Breadcrumb */}
           <div className="breadcrumb">
             <span className="breadcrumb-item">

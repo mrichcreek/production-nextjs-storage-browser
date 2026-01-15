@@ -137,6 +137,32 @@ body {
   color: #ffffff;
   margin: 0;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Environment Badge */
+.env-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  text-shadow: none;
+}
+
+.env-badge.env-production {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(56, 161, 105, 0.4);
+}
+
+.env-badge.env-development {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%);
+  color: white;
+  box-shadow: 0 2px 4px rgba(221, 107, 32, 0.4);
 }
 
 .header-right {
@@ -209,6 +235,71 @@ body {
   top: var(--header-height);
   bottom: 0;
   overflow-y: auto;
+  transition: width var(--transition-normal), transform var(--transition-normal);
+}
+
+/* Collapsed Sidebar */
+.sidebar.collapsed {
+  width: 60px;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-title,
+.sidebar.collapsed .sidebar-link span:not(.sidebar-icon),
+.sidebar.collapsed .quick-link-delete,
+.sidebar.collapsed .add-quick-link span:not(.sidebar-icon) {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-link {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .sidebar-icon {
+  width: 100%;
+  font-size: 20px;
+}
+
+.sidebar.collapsed .sidebar-item {
+  margin: 2px 4px;
+}
+
+.sidebar.collapsed .quick-link-item .sidebar-link {
+  padding-right: 0;
+}
+
+/* Sidebar Collapse Toggle Button */
+.sidebar-collapse-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  z-index: 10;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.sidebar-collapse-btn:hover {
+  background: #2b6cb0;
+  border-color: #2b6cb0;
+  color: white;
+}
+
+.sidebar.collapsed .sidebar-collapse-btn {
+  right: 50%;
+  transform: translateX(50%);
 }
 
 .sidebar-title {
@@ -287,6 +378,11 @@ body {
   padding: 24px;
   background: linear-gradient(180deg, #e2e8f0 0%, #edf2f7 30%, #f7fafc 100%);
   min-height: calc(100vh - var(--header-height));
+  transition: margin-left var(--transition-normal);
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 60px;
 }
 
 /* ============================================
