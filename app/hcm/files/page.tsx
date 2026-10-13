@@ -8,7 +8,11 @@ import '@aws-amplify/ui-react/styles.css';
 import config from '../../../amplify_outputs.json';
 import { ApiResult, apiGet, apiPost, fmtDateTime } from '../../lib/symphony';
 import HcmShell, { fileTypeLabel, formatSize, partyKey, partyLabel, useHcm } from '../HcmShell';
-import { responseBadgeClass, responseShort } from '../certifications/shared';
+import { day, responseBadgeClass, responseShort } from '../certifications/shared';
+import { FormInfo, FormRow, FormRowsTable, formTitle, isPdf, openFormFile } from '../certifications/FormsStep';
+import WorkbookViewer, { WorkbookPage, isWorkbook } from '../../lib/WorkbookViewer';
+import DownloadDialog from '../../lib/DownloadDialog';
+import '../certifications/certifications.css';
 import './files.css';
 
 Amplify.configure(config);
@@ -21,6 +25,8 @@ interface PubTree extends ApiResult { party?: string; modules?: PubModule[]; tot
 interface PubParty { source: string; agency: string; bu?: string; party?: string; files?: number; required?: number; certified?: number }
 interface PubParties extends ApiResult { parties?: PubParty[] }
 interface DownloadUrl extends ApiResult { url?: string; file_name?: string }
+interface FormKind { kind: string; label: string; form: FormInfo | null; rows: FormRow[] }
+interface FormStatus extends ApiResult { kinds?: FormKind[] }
 
 /** The folder a link from another portal page points to (?module=&file_type=&entity=, staff links add source and agency). */
 interface FolderLink { source: string; agency: string; module: string; fileType: string; entity: string }
@@ -28,6 +34,8 @@ interface FolderLink { source: string; agency: string; module: string; fileType:
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const same = (a?: string, b?: string) => (a || '').trim().toUpperCase() === (b || '').trim().toUpperCase();
 const fileCount = (t: PubFileType) => (t.entities ?? []).reduce((n, e) => n + (e.files?.length ?? 0), 0);
+/** The HR and Payroll validation workbooks: read on screen, and their download can carry a password. */
+const isValidationWorkbook = (t: PubFileType, f: PubFile) => /validation/i.test(fileTypeLabel(t.file_type)) && isWorkbook(f.name);
 const pendingCount = (t: PubFileType) => (t.entities ?? []).filter(e => e.certification_required && !e.certified).length;
 
 function pointsTo(link: FolderLink | null, m: PubModule, t: PubFileType, e: PubEntity): boolean {
@@ -87,6 +95,92 @@ function FileTypeGroup({ type, open, onToggle, children }: FileTypeGroupProps) {
   );
 }
 
+/** The certification forms a source and agency signed, as signed, with the answers the portal read from each. */
+function SignedForms({ source, agency, needle }: { source: string; agency: string; needle: string }) {
+  const { mock, email, view } = useHcm();
+  const [kinds, setKinds] = useState<FormKind[] | null>(null);
+  const [failed, setFailed] = useState('');
+  const [problem, setProblem] = useState('');
+  const [openId, setOpenId] = useState(0);
+  const [busy, setBusy] = useState(0);
+
+  useEffect(() => {
+    let stale = false;
+    setKinds(null);
+    setFailed('');
+    apiGet<FormStatus>('certform_status', { mock, source, agency, email }).then(d => {
+      if (stale) return;
+      if (d.ok) setKinds(d.kinds ?? []);
+      else setFailed(d.error || 'The signed forms could not be loaded');
+    });
+    return () => { stale = true; };
+  }, [mock, source, agency, email]);
+
+  // A PDF opens in a new tab, opened before the request so no pop-up blocker stops it; an Excel form downloads.
+  const open = async (f: FormInfo) => {
+    const tab = isPdf(f) ? window.open('', '_blank') : null;
+    setBusy(f.id);
+    setProblem(await openFormFile(f.id, email, tab));
+    setBusy(0);
+  };
+
+  if (failed) return <div className="sy-error">{view === 'staff' ? failed : 'The signed certification forms could not be loaded. Please try again in a moment.'}</div>;
+  // A party that certifies no form has nothing to list.
+  if (!kinds || kinds.length === 0) return null;
+  const signed = kinds.filter(k => k.form && (!needle || k.form.file_name.toLowerCase().includes(needle)));
+  if (needle && signed.length === 0) return null;
+
+  return (
+    <section className="hf-module">
+      <div className="hf-module-head">
+        <h2 className="hf-module-title">Signed certification forms</h2>
+        <span className="hf-module-meta">{signed.length > 0 ? plural(signed.length, 'form', 'forms') : 'None signed yet'}</span>
+      </div>
+      {problem && <div className="sy-error" role="alert">{problem}</div>}
+      <div className="hf-type hf-forms">
+        {signed.length === 0 ? (
+          <p className="hf-none">
+            {view === 'agency'
+              ? 'The certification forms you sign on the Certifications page appear here, so you can open them at any time.'
+              : 'No certification form has been signed for this source and agency yet.'}
+          </p>
+        ) : (
+          <ul className="hf-files">
+            {signed.map(({ kind, label, form: f, rows }) => f && (
+              <li key={kind} className="hf-file">
+                <span className="hf-file-icon">{DOCUMENT}</span>
+                <div className="hf-file-main">
+                  <div className="hf-file-name">{formTitle(label)}</div>
+                  <div className="hf-file-meta">
+                    {[
+                      f.signer_name && `Signed by ${[f.signer_name, f.signer_title].filter(Boolean).join(', ')}`,
+                      f.signed_date,
+                      `${f.electronic ? 'Signed electronically in the portal' : isPdf(f) ? 'Signed PDF uploaded' : 'Signed form uploaded'}`
+                        + `${f.uploaded_by ? ` by ${f.uploaded_by}` : ''}${f.uploaded_at ? ` on ${day(f.uploaded_at)}` : ''}`,
+                    ].filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="hf-file-meta">{f.file_name}</div>
+                </div>
+                <div className="hf-file-actions">
+                  <button type="button" className="btn btn-primary hf-small" disabled={busy === f.id} onClick={() => open(f)}
+                    aria-label={`${isPdf(f) ? 'View' : 'Download'} ${f.file_name}`}>
+                    {busy === f.id ? 'Please wait…' : isPdf(f) ? 'View PDF' : 'Download'}
+                  </button>
+                  <button type="button" className="btn btn-secondary hf-small" aria-expanded={openId === f.id}
+                    onClick={() => setOpenId(openId === f.id ? 0 : f.id)}>
+                    {openId === f.id ? 'Hide answers' : 'Show answers'}
+                  </button>
+                </div>
+                {openId === f.id && <div className="hf-form-rows"><FormRowsTable rows={rows} /></div>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
 interface PartyFilesProps {
   party: Pick<PubParty, 'source' | 'agency' | 'bu' | 'party'>;
   link: FolderLink | null;
@@ -138,6 +232,11 @@ function PartyFiles({ party, link, canRemove, onRemoved }: PartyFilesProps) {
   const modules = useMemo(() => tree?.modules ?? [], [tree]);
   const needle = search.trim().toLowerCase();
   const shown = useMemo(() => matching(modules, needle), [modules, needle]);
+  const [viewing, setViewing] = useState<PubFile | null>(null);
+  const [asking, setAsking] = useState<PubFile | null>(null);   // the workbook whose download asks about a password
+  const viewId = viewing?.id;
+  const loadView = useCallback((sheet: string, offset: number, q: string) =>
+    apiGet<WorkbookPage>('pub_view', { id: viewId, sheet, offset, q, email }), [viewId, email]);
 
   if (!tree) {
     if (!loadError) return <p className="hcm-loading">Loading…</p>;
@@ -158,17 +257,22 @@ function PartyFiles({ party, link, canRemove, onRemoved }: PartyFilesProps) {
   const pending = types.reduce((n, t) => n + pendingCount(t), 0);
   const found = shown.reduce((n, m) => n + (m.file_types ?? []).reduce((k, t) => k + fileCount(t), 0), 0);
 
+  // With a password the server encrypts a copy (POST: the password stays out of the address).
+  const fetchDownload = async (f: PubFile, password: string | null): Promise<string | void> => {
+    const d = password
+      ? await apiPost<DownloadUrl>('pub_download_protected', { id: f.id, password, email })
+      : await apiGet<DownloadUrl>('pub_download_url', { id: f.id, email });
+    if (!d.ok || !d.url) return reason(d, `${f.name} could not be downloaded. Please try again in a moment.`);
+    window.location.assign(d.url);
+  };
+
   const download = async (f: PubFile) => {
     setBusy(ids => [...ids, f.id]);
     setError('');
     setNotice('');
-    const d = await apiGet<DownloadUrl>('pub_download_url', { id: f.id, email });
+    const failed = await fetchDownload(f, null);
     setBusy(ids => ids.filter(id => id !== f.id));
-    if (!d.ok || !d.url) {
-      setError(reason(d, `${f.name} could not be downloaded. Please try again in a moment.`));
-      return;
-    }
-    window.location.assign(d.url);
+    if (failed) setError(failed);
   };
 
   const remove = async (f: PubFile) => {
@@ -280,8 +384,14 @@ function PartyFiles({ party, link, canRemove, onRemoved }: PartyFilesProps) {
                                   </div>
                                 </div>
                                 <div className="hf-file-actions">
+                                  {isValidationWorkbook(t, f) && (
+                                    <button type="button" className="btn btn-secondary hf-small" onClick={() => setViewing(f)}
+                                      aria-label={`View ${f.name}`}>
+                                      View
+                                    </button>
+                                  )}
                                   <button type="button" className="btn btn-primary hf-small" disabled={busy.includes(f.id)}
-                                    onClick={() => download(f)} aria-label={`Download ${f.name}`}>
+                                    onClick={() => (isValidationWorkbook(t, f) ? setAsking(f) : download(f))} aria-label={`Download ${f.name}`}>
                                     {busy.includes(f.id) ? 'Please wait…' : 'Download'}
                                   </button>
                                   {canRemove && (
@@ -304,6 +414,17 @@ function PartyFiles({ party, link, canRemove, onRemoved }: PartyFilesProps) {
           </section>
         );
       })}
+
+      <SignedForms source={source} agency={agency} needle={needle} />
+
+      {viewing && (
+        <WorkbookViewer title={viewing.name} load={loadView} onClose={() => setViewing(null)}
+          onDownload={() => setAsking(viewing)} />
+      )}
+      {asking && (
+        <DownloadDialog fileName={asking.name} onClose={() => setAsking(null)}
+          download={password => fetchDownload(asking, password)} />
+      )}
     </>
   );
 }

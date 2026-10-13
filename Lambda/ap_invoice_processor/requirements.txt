@@ -1,0 +1,4 @@
+# Packaged with the function (the layers provide openpyxl, pandas and pyodbc).
+# Build with manylinux x86_64 wheels for Python 3.12:
+#   pip download -r requirements.txt --platform manylinux2014_x86_64 --python-version 3.12 --only-binary=:all:
+msoffcrypto-tool==6.0.0   # password-protected workbook downloads (workbook_tools.py)

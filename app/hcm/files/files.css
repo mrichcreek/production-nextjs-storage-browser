@@ -72,3 +72,9 @@
 }
 
 .hf-how { margin: 0 0 14px; font-size: 14px; line-height: 1.5; }
+
+/* signed certification forms: one card under the folders */
+.hf-forms { padding: 6px 18px; }
+.hf-forms > .hf-none { padding: 8px 0; }
+.hf-form-rows { flex-basis: 100%; padding: 4px 0 8px 34px; }
+@media (max-width: 900px) { .hf-form-rows { padding-left: 0; } }

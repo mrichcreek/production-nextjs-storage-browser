@@ -10,12 +10,12 @@ Run workbook (FIN / SCM programs):
   Error Messages  the catalog entry of every validation code present
 
 HCM workbook (one program run, or every reportable HCM program of a source /
-business unit — the per-agency workbook):
+business unit — the per-agency workbook), laid out as the team's HR and
+Payroll files (e.g. HCM_FileValidation_RHUM-018-Junta De Planificacion_...):
   Summary               as above
-  Observaciones         left for the reviewer's notes
   File Validation Error one row per failing record — the ten named columns
-                        plus Column 1 .. Column 30
-  Error Messages        as above
+                        plus Column 1 .. Column 30, as the Excel table "Validations"
+  Error Messages        as above, as the Excel table "ErrorMessagesTable"
 
 Files are written to S3 under REPORT_PREFIX/<mock>/<program>/<source>/ with
 the team's file naming, e.g. 122651_HUM_ASSETS_MOCK14_FileValidation_2026.09.19-14.05.31.xlsx,
@@ -27,6 +27,7 @@ time-limited link.
 """
 import io
 import re
+import warnings
 from collections import Counter
 from datetime import datetime
 
@@ -37,13 +38,15 @@ from openpyxl.cell import WriteOnlyCell
 from openpyxl.cell.cell import Cell
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.table import Table, TableColumn, TableStyleInfo
 
 import api_util
 import authz
 import validation_seed
+import workbook_tools
 from api_util import ApiError
 
-ACTIONS = {"val_report_url", "val_agency_report"}
+ACTIONS = {"val_report_url", "val_report_view", "val_report_protected", "val_agency_report"}
 
 # Where validation data lives (the same database the runner works against).
 DB = validation_seed.TARGET_DB
@@ -68,7 +71,8 @@ HCM_DETAIL_COLS = (["ERROR_MSG", "Entity", "File", "File_PROCESSED_DTTM", "VALID
 _HCM_MOCK_IDX = HCM_HEADER.index("Mock")
 LEGEND_HEADER = ["Validation Code", "Error Message", "Error Message Description", "Entity", "Validation Type"]
 SUMMARY_HEADER = ["Row Labels", "Count of Error Message"]
-OBSERVACIONES_TITLE = "Observaciones DCL y Validaciones"
+# The team's HR and Payroll files hold their rows in Excel tables of this style.
+TABLE_STYLE = "TableStyleMedium4"
 
 # The team's programs name the workbook by entity, not by catalog program.
 _LABEL = {"Asset": "ASSETS", "Inventory": "ITEM"}
@@ -167,14 +171,36 @@ def _write_summary(ws, triples):
     ws.append([_styled(ws, "Grand Total", bold=True), _styled(ws, grand, bold=True)])
 
 
-def _write_legend(ws, legend):
-    """Error Messages sheet: one row per validation code."""
+def _add_table(ws, name, header, rows):
+    """The sheet's header and rows as one Excel table (filter buttons, banded
+    rows), the way the team's files present them. A streamed sheet needs the
+    table's columns spelled out."""
+    ref = f"A1:{get_column_letter(len(header))}{max(2, rows + 1)}"
+    table = Table(displayName=name, ref=ref)
+    table._initialise_columns()
+    for column, title in zip(table.tableColumns, header):
+        column.name = title
+    table.tableStyleInfo = TableStyleInfo(name=TABLE_STYLE, showFirstColumn=False, showLastColumn=False,
+                                          showRowStripes=True, showColumnStripes=False)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)   # "add table columns manually": done above
+        ws.add_table(table)
+
+
+def _write_legend(ws, legend, table=None):
+    """Error Messages sheet: one row per validation code; as the Excel table
+    `table` when one is named."""
     for i, w in enumerate([18, 70, 90, 24, 18], start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    ws.freeze_panes = "A2"
-    ws.append([_styled(ws, h, head=True) for h in LEGEND_HEADER])
+    if table:
+        ws.append(LEGEND_HEADER)
+    else:
+        ws.freeze_panes = "A2"
+        ws.append([_styled(ws, h, head=True) for h in LEGEND_HEADER])
     for row in legend:
         ws.append([api_util.xlsx_value(ws, _cell(v)) for v in list(row)[:len(LEGEND_HEADER)]])
+    if table:
+        _add_table(ws, table, LEGEND_HEADER, len(legend))
 
 
 def build_workbook(records, legend=None):
@@ -206,31 +232,26 @@ def build_workbook(records, legend=None):
 
 
 def build_hcm_workbook(records, legend, mock):
-    """HCM workbook bytes: Summary, Observaciones, File Validation Error,
-    Error Messages. `records` are rows in HCM_HEADER / HCM_DETAIL_COLS order;
-    `mock` fills the Mock column of a record that has none. Written in
-    streaming mode — these workbooks can run to hundreds of thousands of rows."""
+    """HCM workbook bytes: Summary, File Validation Error, Error Messages.
+    `records` are rows in HCM_HEADER / HCM_DETAIL_COLS order; `mock` fills the
+    Mock column of a record that has none. Written in streaming mode — these
+    workbooks can run to hundreds of thousands of rows."""
     wb = Workbook(write_only=True)
     _write_summary(wb.create_sheet("Summary"), ((rec[4], rec[1], rec[0]) for rec in records))
-
-    obs = wb.create_sheet("Observaciones")
-    obs.column_dimensions["A"].width = 60
-    obs.append([_styled(obs, OBSERVACIONES_TITLE, bold=True)])
 
     ws = wb.create_sheet("File Validation Error")
     widths = [60, 18, 40, 20, 16, 14, 16, 14, 16, 14] + [22] * N_HCM_EXTRA
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
-    ws.freeze_panes = "A2"
-    ws.auto_filter.ref = f"A1:{get_column_letter(len(HCM_HEADER))}{max(2, len(records) + 1)}"
-    ws.append([_styled(ws, h, head=True) for h in HCM_HEADER])
+    ws.append(HCM_HEADER)
     for rec in records:
         row = [_hcm_cell(ws, v) for v in rec]
         if row[_HCM_MOCK_IDX] is None:
             row[_HCM_MOCK_IDX] = mock
         ws.append(row)
+    _add_table(ws, "Validations", HCM_HEADER, len(records))
 
-    _write_legend(wb.create_sheet("Error Messages"), legend or [])
+    _write_legend(wb.create_sheet("Error Messages"), legend or [], table="ErrorMessagesTable")
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -398,6 +419,23 @@ def distribution_prefix(rules, source, bu, module):
     return best
 
 
+_BU_IDX = HCM_DETAIL_COLS.index("BU")
+
+
+def _agency_suffix(prefix, source, bu, records):
+    """'-Junta De Planificacion' when the distribution name ends with the source
+    and business unit: the team names an agency's workbook
+    HCM_FileValidation_RHUM-018-Junta De Planificacion_<mock>_<stamp>.xlsx, the
+    agency part being what follows the code in the rows' Business Unit."""
+    code = (bu or "")[:3].upper()
+    if not code or not prefix.upper().endswith(f"{source}-{code}".upper()):
+        return ""
+    for value, _ in Counter(str(r[_BU_IDX] or "").strip() for r in records).most_common():
+        if value.upper().startswith(f"{code}-") and len(value) > len(code) + 1:
+            return re.sub(r'[\\/:*?"<>|]+', " ", value[len(code):]).rstrip()
+    return ""
+
+
 def agency_reports(conn_str, bucket, mock, source, bu=None, audience="agency"):
     """The agency's HR and Payroll workbooks (those with rows), named for the
     distribution list. Returns {reports: [{module, key, name, rows, routed}], warnings}."""
@@ -445,6 +483,7 @@ def agency_reports(conn_str, bucket, mock, source, bu=None, audience="agency"):
             legend = legend_rows(cur, {r[code_idx] for r in records}, reported)
             prefix = distribution_prefix(rules, source, bu, module)
             if prefix:
+                prefix += _agency_suffix(prefix, source, bu, records)
                 name = f"{prefix}{'' if prefix.endswith(('_', '-')) else '_'}{mock}_{stamp}.xlsx"
             else:
                 who = "-".join(api_util.safe_segment(p) for p in (source, bu) if p)
@@ -551,7 +590,20 @@ def handle(action, event, bucket, headers, conn_str):
                 raise ApiError("Report not found", 404)
             return api_util.ok(headers, {"url": api_util.presign_get(bucket, key, key.rsplit("/", 1)[-1])})
 
+        if action == "val_report_view":
+            p = api_util.params(event)
+            key = (p.get("key") or "").strip()
+            _check_download((p.get("email") or "").strip(), key)
+            return api_util.ok(headers, workbook_tools.view(bucket, key, p.get("sheet"), p.get("offset"),
+                                                            p.get("limit"), p.get("q")))
+
         body = api_util.body(event)
+        if action == "val_report_protected":
+            # POST: the password travels in the body, never in the address.
+            key = (body.get("key") or "").strip()
+            _check_download((body.get("actor") or "").strip(), key)
+            url = workbook_tools.protected_url(bucket, key, key.rsplit("/", 1)[-1], body.get("password"))
+            return api_util.ok(headers, {"url": url})
         authz.require((body.get("actor") or "").strip(), what="generating agency workbooks")
         if body.get("split"):
             return api_util.ok(headers, agency_reports(conn_str, bucket, body.get("mock"), body.get("source"),

@@ -34,14 +34,15 @@ import pyodbc
 import api_util
 import authz
 import validation_seed
+import workbook_tools
 from api_util import ApiError
 
 ACTIONS = {
-    "pub_parties", "pub_tree", "pub_download_url", "guide_list", "guide_url",
+    "pub_parties", "pub_tree", "pub_download_url", "pub_view", "pub_download_protected", "guide_list", "guide_url",
     "pub_preview", "pub_upload_urls", "pub_publish", "pub_publish_report", "pub_delete",
     "guide_upload_url", "guide_delete", "pub_rules",
 }
-_READS = {"pub_parties", "pub_tree", "pub_download_url", "guide_list", "guide_url", "pub_rules"}
+_READS = {"pub_parties", "pub_tree", "pub_download_url", "pub_view", "guide_list", "guide_url", "pub_rules"}
 
 DB = validation_seed.TARGET_DB
 SOURCE = validation_seed.SOURCE_DB
@@ -466,6 +467,25 @@ def _download_url(conn, cur, p, bucket):
     return {"url": api_util.presign_get(bucket, row[5], file_segment(row[4])), "file_name": row[4]}
 
 
+def _view(conn, cur, p, bucket):
+    """One page of one sheet of a published workbook, for reading in the portal."""
+    email = _reader(p, "viewing a published file")
+    row = _file_row(cur, p.get("id"))
+    _check_party(email, row[1], row[2], row[3])
+    return {"file_name": row[4], **workbook_tools.view(bucket, row[5], p.get("sheet"), p.get("offset"),
+                                                         p.get("limit"), p.get("q"))}
+
+
+def _download_protected(conn, cur, data, bucket):
+    """A link to a copy of a published workbook that opens only with the
+    password the user chose (POST: the password never travels in the address)."""
+    email = _reader(data, "downloading a published file")
+    row = _file_row(cur, data.get("id"))
+    _check_party(email, row[1], row[2], row[3])
+    return {"url": workbook_tools.protected_url(bucket, row[5], file_segment(row[4]), data.get("password")),
+            "file_name": row[4]}
+
+
 # ── published files: writes (super users) ────────────────────────────────────
 
 def _names(data, limit=None):
@@ -672,6 +692,7 @@ def _guide_delete(data, bucket):
 _S3_ONLY = {"guide_list": _guide_list, "guide_url": _guide_url, "pub_upload_urls": _upload_urls,
             "guide_upload_url": _guide_upload_url, "guide_delete": _guide_delete}
 _WITH_DATABASE = {"pub_rules": _rules, "pub_parties": _parties, "pub_tree": _tree, "pub_download_url": _download_url,
+                  "pub_view": _view, "pub_download_protected": _download_protected,
                   "pub_preview": _preview, "pub_publish": _publish, "pub_publish_report": _publish_report,
                   "pub_delete": _delete}
 

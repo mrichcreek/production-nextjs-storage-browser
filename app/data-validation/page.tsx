@@ -10,6 +10,8 @@ import './data-validation.css';
 import config from '../../amplify_outputs.json';
 import Link from 'next/link';
 import { ApiResult, apiGet, apiPost, fmtDateTime as fmtDate, ROLE_LABEL, usePortalGuard, useSymphonySession } from '../lib/symphony';
+import WorkbookViewer, { WorkbookPage } from '../lib/WorkbookViewer';
+import DownloadDialog from '../lib/DownloadDialog';
 
 Amplify.configure(config);
 
@@ -83,6 +85,18 @@ function jobStatus(j: Job, now: number): { text: string; cls: string } {
 }
 const folderName = (fileType?: string) => (fileType || '').replace(/^\d+\s*[-.)]?\s*/, '');
 
+interface Workbook { key: string; name: string }
+
+/** A generated workbook: its name opens it on screen, Download asks about a password first. */
+function WorkbookLinks({ wb, onView, onDownload }: { wb: Workbook; onView: (wb: Workbook) => void; onDownload: (wb: Workbook) => void }) {
+  return (
+    <span className="dv-workbook">
+      <button className="sy-link" onClick={() => onView(wb)} title="Open the workbook on screen">{wb.name}</button>
+      <button className="btn btn-secondary dv-mini" onClick={() => onDownload(wb)}>Download</button>
+    </span>
+  );
+}
+
 function DataValidationPage() {
   const session = useSymphonySession();
   const toPortal = usePortalGuard(session);   // portal-only users are sent to the HCM portal
@@ -113,6 +127,8 @@ function DataValidationPage() {
   const [notice, setNotice] = useState('');
   const [publishing, setPublishing] = useState('');
   const [published, setPublished] = useState<Record<string, string>>({});
+  const [viewing, setViewing] = useState<Workbook | null>(null);
+  const [downloading, setDownloading] = useState<Workbook | null>(null);
   const lastStatus = useRef<Record<number, string>>({});
 
   // Programs (and the sources each can run for) depend on the mock being shown.
@@ -262,10 +278,17 @@ function DataValidationPage() {
   };
 
   // The workbooks hold person-level rows: the server checks the caller's role
-  // before handing out a short-lived link.
-  const openReport = async (key: string) => {
-    const d = await apiGet<ReportUrl>('val_report_url', { key, email });
-    if (!d.ok) { setError(d.error || 'Could not open report'); return; }
+  // before showing one or handing out a short-lived link.
+  const viewKey = viewing?.key;
+  const loadView = useCallback((sheet: string, offset: number, q: string) =>
+    apiGet<WorkbookPage>('val_report_view', { key: viewKey, sheet, offset, q, email }), [viewKey, email]);
+
+  // With a password the server encrypts a copy (POST: the password stays out of the address).
+  const downloadReport = async (key: string, password: string | null) => {
+    const d = password
+      ? await apiPost<ReportUrl>('val_report_protected', { key, password, actor: email })
+      : await apiGet<ReportUrl>('val_report_url', { key, email });
+    if (!d.ok) return d.error || 'The workbook could not be downloaded';
     window.location.assign(d.url);  // served as an attachment: downloads in place, no pop-up to block
   };
 
@@ -397,7 +420,7 @@ function DataValidationPage() {
               {agencyReports.reports.map(w => (
                 <div key={w.key}>
                   {w.module === 'PAYROLL' ? 'Payroll' : 'HR'}:{' '}
-                  <button className="sy-link" onClick={() => openReport(w.key)}>{w.name}</button>
+                  <WorkbookLinks wb={w} onView={setViewing} onDownload={setDownloading} />
                   {' '}· {w.rows.toLocaleString()} rows{' '}
                   <button className="btn btn-secondary" disabled={publishing === w.key} onClick={() => publishReport(w.key)}>
                     {publishing === w.key ? 'Publishing…' : 'Publish to the agency'}
@@ -449,7 +472,9 @@ function DataValidationPage() {
                       </td>
                       <td className="small">{j.requested_by}<div className="sy-muted">{fmtDate(j.requested_at).slice(0, 16)}</div></td>
                       <td className="num">{j.total_rows != null ? j.total_rows.toLocaleString() : '—'}</td>
-                      <td>{j.report_key ? <button className="sy-link" onClick={() => openReport(j.report_key!)}>{j.report_name}</button> : '—'}</td>
+                      <td>{j.report_key
+                        ? <WorkbookLinks wb={{ key: j.report_key, name: j.report_name || j.report_key.split('/').pop() || '' }} onView={setViewing} onDownload={setDownloading} />
+                        : '—'}</td>
                       <td>{(j.status === 'queued' || j.status === 'running') && <button className="btn btn-secondary" onClick={() => cancelJob(j)}>Stop</button>}</td>
                     </tr>
                   );
@@ -472,7 +497,8 @@ function DataValidationPage() {
           )}
           {runResult.report_key && (
             <p>
-              Client report: <button className="sy-link" onClick={() => openReport(runResult.report_key!)}>{runResult.report_name}</button>
+              Client report: <WorkbookLinks wb={{ key: runResult.report_key, name: runResult.report_name || runResult.report_key.split('/').pop() || '' }}
+                onView={setViewing} onDownload={setDownloading} />
               {' '}({(runResult.report_rows || 0).toLocaleString()} rows) — saved under <code>{runResult.report_key.split('/').slice(0, -1).join('/')}</code>
             </p>
           )}
@@ -586,7 +612,7 @@ function DataValidationPage() {
                   <tr key={r.key}>
                     <td className="small">{fmtDate(r.last_modified)}</td>
                     <td className="mono">{r.source}</td>
-                    <td><button className="sy-link" onClick={() => openReport(r.key)}>{r.name}</button></td>
+                    <td><WorkbookLinks wb={r} onView={setViewing} onDownload={setDownloading} /></td>
                     <td className="num small">{Math.round(r.size / 1024).toLocaleString()} KB</td>
                     <td className="small">
                       <button className="btn btn-secondary" disabled={publishing === r.key} onClick={() => publishReport(r.key)}
@@ -617,6 +643,15 @@ function DataValidationPage() {
             </table>
           </div>
         </section>
+      )}
+
+      {viewing && (
+        <WorkbookViewer title={viewing.name} load={loadView} onClose={() => setViewing(null)}
+          onDownload={() => setDownloading(viewing)} />
+      )}
+      {downloading && (
+        <DownloadDialog fileName={downloading.name} onClose={() => setDownloading(null)}
+          download={password => downloadReport(downloading.key, password)} />
       )}
     </div>
   );
